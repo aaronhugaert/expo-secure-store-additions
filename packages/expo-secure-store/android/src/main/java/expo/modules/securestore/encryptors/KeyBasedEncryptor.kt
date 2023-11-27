@@ -24,6 +24,7 @@ interface KeyBasedEncryptor<E : KeyStore.Entry> {
     plaintextValue: String,
     keyStoreEntry: E,
     requireAuthentication: Boolean,
+    allowDeviceCredentials: Boolean,
     authenticationPrompt: String,
     authenticationHelper: AuthenticationHelper,
   ): JSONObject

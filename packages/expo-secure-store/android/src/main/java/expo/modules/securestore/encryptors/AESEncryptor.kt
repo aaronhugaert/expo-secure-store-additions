@@ -1,5 +1,6 @@
 package expo.modules.securestore.encryptors
 
+import android.os.Build
 import android.annotation.TargetApi
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
@@ -55,13 +56,25 @@ class AESEncryptor : KeyBasedEncryptor<KeyStore.SecretKeyEntry> {
     val extendedKeystoreAlias = getExtendedKeyStoreAlias(options, options.requireAuthentication)
     val keyPurposes = KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
 
-    val algorithmSpec: AlgorithmParameterSpec = KeyGenParameterSpec.Builder(extendedKeystoreAlias, keyPurposes)
+    val builder: KeyGenParameterSpec.Builder = KeyGenParameterSpec.Builder(extendedKeystoreAlias, keyPurposes)
       .setKeySize(AES_KEY_SIZE_BITS)
       .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
       .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
       .setUserAuthenticationRequired(options.requireAuthentication)
-      .build()
+    
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      var authenticators = KeyProperties.AUTH_BIOMETRIC_STRONG
+      
+      if (options.allowDeviceCredentials){
+        authenticators = KeyProperties.AUTH_BIOMETRIC_STRONG or KeyProperties.AUTH_DEVICE_CREDENTIAL
+      }
 
+      builder.setUserAuthenticationParameters(0, authenticators)
+    } else {
+      builder.setUserAuthenticationValidityDurationSeconds(-1)
+    }
+
+    val algorithmSpec: AlgorithmParameterSpec = builder.build()
     val keyGenerator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, keyStore.provider)
     keyGenerator.init(algorithmSpec)
 
@@ -76,6 +89,7 @@ class AESEncryptor : KeyBasedEncryptor<KeyStore.SecretKeyEntry> {
     plaintextValue: String,
     keyStoreEntry: KeyStore.SecretKeyEntry,
     requireAuthentication: Boolean,
+    allowDeviceCredentials: Boolean,
     authenticationPrompt: String,
     authenticationHelper: AuthenticationHelper,
   ): JSONObject {
@@ -84,7 +98,7 @@ class AESEncryptor : KeyBasedEncryptor<KeyStore.SecretKeyEntry> {
     cipher.init(Cipher.ENCRYPT_MODE, secretKey)
 
     val gcmSpec = cipher.parameters.getParameterSpec(GCMParameterSpec::class.java)
-    val authenticatedCipher = authenticationHelper.authenticateCipher(cipher, requireAuthentication, authenticationPrompt)
+    val authenticatedCipher = authenticationHelper.authenticateCipher(cipher, requireAuthentication, allowDeviceCredentials, authenticationPrompt)
 
     return createEncryptedItemWithCipher(plaintextValue, authenticatedCipher, gcmSpec)
   }
@@ -121,9 +135,10 @@ class AESEncryptor : KeyBasedEncryptor<KeyStore.SecretKeyEntry> {
     val gcmSpec = GCMParameterSpec(authenticationTagLength, ivBytes)
     val cipher = Cipher.getInstance(AES_CIPHER)
     val requiresAuthentication = encryptedItem.optBoolean(AuthenticationHelper.REQUIRE_AUTHENTICATION_PROPERTY)
+    val allowDeviceCredentials = encryptedItem.optBoolean(AuthenticationHelper.ALLOW_DEVICE_CREDENTIALS_PROPERTY)
 
     cipher.init(Cipher.DECRYPT_MODE, keyStoreEntry.secretKey, gcmSpec)
-    val unlockedCipher = authenticationHelper.authenticateCipher(cipher, requiresAuthentication, options.authenticationPrompt)
+    val unlockedCipher = authenticationHelper.authenticateCipher(cipher, requiresAuthentication, allowDeviceCredentials, options.authenticationPrompt)
     return String(unlockedCipher.doFinal(ciphertextBytes), StandardCharsets.UTF_8)
   }
 

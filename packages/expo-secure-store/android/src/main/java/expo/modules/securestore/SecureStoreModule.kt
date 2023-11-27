@@ -177,9 +177,9 @@ open class SecureStoreModule : Module() {
        back a value.
       */
       val secretKeyEntry: SecretKeyEntry = getKeyEntry(SecretKeyEntry::class.java, mAESEncryptor, options, options.requireAuthentication)
-      val encryptedItem = mAESEncryptor.createEncryptedItem(value, secretKeyEntry, options.requireAuthentication, options.authenticationPrompt, authenticationHelper)
+      val encryptedItem = mAESEncryptor.createEncryptedItem(value, secretKeyEntry, options.requireAuthentication, options.allowDeviceCredentials, options.authenticationPrompt, authenticationHelper)
       encryptedItem.put(SCHEME_PROPERTY, AESEncryptor.NAME)
-      saveEncryptedItem(encryptedItem, prefs, keychainAwareKey, options.requireAuthentication, options.keychainService)
+      saveEncryptedItem(encryptedItem, prefs, keychainAwareKey, options.requireAuthentication, options.allowDeviceCredentials, options.keychainService)
 
       // If a legacy value exists under this key we remove it to avoid unexpected errors in the future
       if (prefs.contains(key)) {
@@ -200,13 +200,14 @@ open class SecureStoreModule : Module() {
     }
   }
 
-  private fun saveEncryptedItem(encryptedItem: JSONObject, prefs: SharedPreferences, key: String, requireAuthentication: Boolean, keychainService: String): Boolean {
+  private fun saveEncryptedItem(encryptedItem: JSONObject, prefs: SharedPreferences, key: String, requireAuthentication: Boolean, allowDeviceCredentials: Boolean, keychainService: String): Boolean {
     // We need a way to recognize entries that have been saved under an alias created with getExtendedKeychain
     encryptedItem.put(USES_KEYSTORE_SUFFIX_PROPERTY, true)
     // In order to be able to have the same keys under different keychains
     // we need a way to recognize what is the keychain of the item when we read it
     encryptedItem.put(KEYSTORE_ALIAS_PROPERTY, keychainService)
     encryptedItem.put(AuthenticationHelper.REQUIRE_AUTHENTICATION_PROPERTY, requireAuthentication)
+    encryptedItem.put(AuthenticationHelper.ALLOW_DEVICE_CREDENTIALS_PROPERTY, allowDeviceCredentials)
 
     val encryptedItemString = encryptedItem.toString()
     if (encryptedItemString.isNullOrEmpty()) { // JSONObject#toString() may return null
@@ -298,7 +299,7 @@ open class SecureStoreModule : Module() {
     val keyStoreEntry = if (!keyStore.containsAlias(keystoreAlias)) {
       // Android won't allow us to generate the keys if the device doesn't support biometrics or no biometrics are enrolled
       if (requireAuthentication) {
-        authenticationHelper.assertBiometricsSupport()
+        authenticationHelper.assertBiometricsSupport(options.allowDeviceCredentials)
       }
       encryptor.initializeKeyStoreEntry(keyStore, options)
     } else {

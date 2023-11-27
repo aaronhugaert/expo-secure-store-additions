@@ -19,9 +19,9 @@ class AuthenticationHelper(
 ) {
   private var isAuthenticating = false
 
-  suspend fun authenticateCipher(cipher: Cipher, requiresAuthentication: Boolean, title: String): Cipher {
+  suspend fun authenticateCipher(cipher: Cipher, requiresAuthentication: Boolean, allowDeviceCredentials: Boolean, title: String): Cipher {
     if (requiresAuthentication) {
-      return openAuthenticationPrompt(cipher, title).cryptoObject?.cipher
+      return openAuthenticationPrompt(cipher, title, allowDeviceCredentials).cryptoObject?.cipher
         ?: throw AuthenticationException("Couldn't get cipher from authentication result")
     }
     return cipher
@@ -29,7 +29,8 @@ class AuthenticationHelper(
 
   private suspend fun openAuthenticationPrompt(
     cipher: Cipher,
-    title: String
+    title: String,
+    allowDeviceCredentials: Boolean,
   ): BiometricPrompt.AuthenticationResult {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
       throw AuthenticationException("Biometric authentication requires Android API 23")
@@ -40,11 +41,10 @@ class AuthenticationHelper(
 
     isAuthenticating = true
 
-    assertBiometricsSupport()
     val fragmentActivity = getCurrentActivity() as? FragmentActivity
       ?: throw AuthenticationException("Cannot display biometric prompt when the app is not in the foreground")
 
-    val authenticationPrompt = AuthenticationPrompt(fragmentActivity, context, title)
+    val authenticationPrompt = AuthenticationPrompt(fragmentActivity, context, title, allowDeviceCredentials)
 
     return withContext(Dispatchers.Main.immediate) {
       try {
@@ -56,10 +56,16 @@ class AuthenticationHelper(
     }
   }
 
-  fun assertBiometricsSupport() {
+  fun assertBiometricsSupport(allowDeviceCredentials: Boolean) {
     val biometricManager = BiometricManager.from(context)
+    var authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG;
+
+    if(allowDeviceCredentials && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R){
+      authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
+    }
+
     @SuppressLint("SwitchIntDef") // BiometricManager.BIOMETRIC_SUCCESS shouldn't do anything
-    when (biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)) {
+    when (biometricManager.canAuthenticate(authenticators)) {
       BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE, BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> {
         throw AuthenticationException("No hardware available for biometric authentication. Use expo-local-authentication to check if the device supports it")
       }
@@ -85,5 +91,6 @@ class AuthenticationHelper(
 
   companion object {
     const val REQUIRE_AUTHENTICATION_PROPERTY = "requireAuthentication"
+    const val ALLOW_DEVICE_CREDENTIALS_PROPERTY = "allowDeviceCredentials"
   }
 }

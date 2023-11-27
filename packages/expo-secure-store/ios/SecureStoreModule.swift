@@ -58,7 +58,13 @@ public final class SecureStoreModule: Module {
       guard let _ = Bundle.main.infoDictionary?["NSFaceIDUsageDescription"] as? String else {
         throw MissingPlistKeyException()
       }
-      let accessOptions = SecAccessControlCreateWithFlags(kCFAllocatorDefault, accessibility, SecAccessControlCreateFlags.biometryCurrentSet, nil)
+
+      var secAccessControlFlag = SecAccessControlCreateFlags.biometryCurrentSet
+      if (options.allowDeviceCredentials) {
+        secAccessControlFlag = SecAccessControlCreateFlags.userPresence
+      }
+
+      let accessOptions = SecAccessControlCreateWithFlags(kCFAllocatorDefault, accessibility, secAccessControlFlag, nil)
       query[kSecAttrAccessControl as String] = accessOptions
     }
 

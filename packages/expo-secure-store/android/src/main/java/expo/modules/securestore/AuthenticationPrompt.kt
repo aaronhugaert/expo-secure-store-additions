@@ -1,6 +1,8 @@
 package expo.modules.securestore
 
 import android.content.Context
+import android.os.Build
+import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.biometric.BiometricPrompt.PromptInfo
 import androidx.core.content.ContextCompat
@@ -11,12 +13,26 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
-class AuthenticationPrompt(private val currentActivity: FragmentActivity, context: Context, title: String) {
-  private var executor: Executor = ContextCompat.getMainExecutor(context)
-  private var promptInfo = PromptInfo.Builder()
+fun createBiometricPromptInfo (title: String, cancelString: String, allowDeviceCredentials: Boolean): BiometricPrompt.PromptInfo {
+  var authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG;
+  var promptInfoBuilder = PromptInfo.Builder()
+
+  if(allowDeviceCredentials && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R){
+    authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL;
+  } else {
+    promptInfoBuilder.setNegativeButtonText(cancelString)
+  }
+
+  promptInfoBuilder.setAllowedAuthenticators(authenticators)
     .setTitle(title)
-    .setNegativeButtonText(context.getString(android.R.string.cancel))
-    .build()
+  
+  return promptInfoBuilder.build()
+}
+
+class AuthenticationPrompt(private val currentActivity: FragmentActivity, context: Context, title: String, allowDeviceCredentials: Boolean) {
+  private var executor: Executor = ContextCompat.getMainExecutor(context)
+  private var cancelString = context.getString(android.R.string.cancel);
+  private var promptInfo = createBiometricPromptInfo(title, cancelString, allowDeviceCredentials);
 
   suspend fun authenticate(cipher: Cipher): BiometricPrompt.AuthenticationResult? =
     suspendCoroutine { continuation ->

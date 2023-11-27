@@ -45,9 +45,14 @@ function SecureStoreView() {
   const [value, setValue] = React.useState<string | undefined>();
   const [service, setService] = React.useState<string | undefined>();
   const [requireAuth, setRequireAuth] = React.useState<boolean | undefined>();
+  const [allowPasscode, setAllowPasscode] = React.useState<boolean | undefined>();
 
   const toggleAuth = async () => {
     setRequireAuth(!requireAuth);
+  };
+
+  const toggleAllowPasscode = async () => {
+    setAllowPasscode(!allowPasscode);
   };
 
   async function storeValueAsync(value: string, key: string) {
@@ -55,6 +60,7 @@ function SecureStoreView() {
       await SecureStore.setItemAsync(key, value, {
         keychainService: service,
         requireAuthentication: requireAuth,
+        allowDeviceCredentials: allowPasscode,
         authenticationPrompt: 'Authenticate',
       });
       Alert.alert('Success!', 'Value: ' + value + ', stored successfully for key: ' + key, [
@@ -70,6 +76,7 @@ function SecureStoreView() {
       SecureStore.setItem(key, value, {
         keychainService: service,
         requireAuthentication: requireAuth,
+        allowDeviceCredentials: allowPasscode,
         authenticationPrompt: 'Authenticate',
       });
       Alert.alert('Success!', 'Value: ' + value + ', stored successfully for key: ' + key, [
@@ -85,6 +92,7 @@ function SecureStoreView() {
       const fetchedValue = await SecureStore.getItemAsync(key, {
         keychainService: service,
         requireAuthentication: requireAuth,
+        allowDeviceCredentials: allowPasscode,
         authenticationPrompt: 'Authenticate',
       });
       Alert.alert('Success!', 'Fetched value: ' + fetchedValue, [
@@ -100,6 +108,7 @@ function SecureStoreView() {
       const fetchedValue = SecureStore.getItem(key, {
         keychainService: service,
         requireAuthentication: requireAuth,
+        allowDeviceCredentials: allowPasscode,
         authenticationPrompt: 'Authenticate',
       });
       Alert.alert('Success!', 'Fetched value: ' + fetchedValue, [
@@ -145,6 +154,10 @@ function SecureStoreView() {
       <View style={styles.authToggleContainer}>
         <Text>Requires authentication:</Text>
         <Switch value={requireAuth} onValueChange={toggleAuth} />
+      </View>
+      <View style={styles.authToggleContainer}>
+        <Text>Allow device credentials:</Text>
+        <Switch value={allowPasscode} onValueChange={toggleAllowPasscode} />
       </View>
       {value && key && (
         <ListButton onPress={() => storeValueAsync(value, key)} title="Store value with key" />

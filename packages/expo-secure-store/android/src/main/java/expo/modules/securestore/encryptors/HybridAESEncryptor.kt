@@ -68,6 +68,7 @@ class HybridAESEncryptor(private var mContext: Context, private val mAESEncrypto
     plaintextValue: String,
     keyStoreEntry: KeyStore.PrivateKeyEntry,
     requireAuthentication: Boolean,
+    allowDeviceCredentials: Boolean,
     authenticationPrompt: String,
     authenticationHelper: AuthenticationHelper
   ): JSONObject {
