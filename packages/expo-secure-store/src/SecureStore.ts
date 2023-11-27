@@ -79,7 +79,7 @@ export type SecureStoreOptions = {
    */
   requireAuthentication?: boolean;
   /**
-   * Option responsible for enabling the use of device credentials as a user authentication method (requires API 11 or higher on Android)
+   * Option responsible for enabling the use of device credentials as a user authentication method (requires API 30 or higher on Android)
    */
   allowDeviceCredentials?: boolean;
   /**
